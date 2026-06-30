@@ -2,41 +2,30 @@ from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import os
 import re
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import time # For search_script
 
 app = Flask(__name__)
 
 # ----------------- Gemini API Setup ----------------- #
 
-# --- DANGER ---
-# PASTE YOUR API KEY HERE.
-# DO NOT share this file publicly with your key in it.
-#
-API_KEY = "AIzaSyB0BvnHYUhaOMa_xoVZo5Vx-gtPtu0aIWg"  # <-- *** PASTE YOUR KEY HERE ***
-#
-# -----------------
+API_KEY = os.environ.get("GOOGLE_API_KEY")
 
-if API_KEY == "YOUR_API_KEY_HERE":
+if not API_KEY:
     print("="*50)
     print("WARNING: You have not set your Google API Key.")
-    print("Please paste your key into the API_KEY variable in app.py")
+    print("Set GOOGLE_API_KEY in your environment variables.")
     print("Get a key from https://aistudio.google.com/")
     print("="*50)
-else:
-    genai.configure(api_key=API_KEY)
+client = genai.Client(api_key=API_KEY) if API_KEY else None
 
 # Create the model
-generation_config = {
-  "temperature": 0.7,
-  "top_p": 1,
-  "top_k": 1,
-  "max_output_tokens": 2048,
-}
-# Using the model we found from your check_models.py
-model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash",
-    generation_config=generation_config
+generation_config = types.GenerateContentConfig(
+    temperature=0.7,
+    top_p=1,
+    top_k=1,
+    max_output_tokens=2048,
 )
 
 # ----------------- CSV Setup (Your Original Code) ----------------- #
@@ -297,7 +286,13 @@ Be helpful and conversational.
 
     # --- Step 3: Generation (Call the Gemini API) ---
     try:
-        response = model.generate_content(prompt)
+        if client is None:
+            raise RuntimeError("GOOGLE_API_KEY is not configured.")
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=generation_config,
+        )
         bot_response = response.text
     except Exception as e:
         print(f"Error calling Gemini API: {e}")
@@ -309,4 +304,3 @@ Be helpful and conversational.
 # ----------------- Main (Your Original Code) ----------------- #
 if __name__ == "__main__":
     app.run(debug=True)
-
